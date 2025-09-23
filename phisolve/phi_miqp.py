@@ -129,3 +129,14 @@ class PhiMIQP:
                 refined_samples[binind[i]] = np.concatenate((np.array(binval), np.array(batch_refined_sample[i])))
         refine_time = time.time() - refine_start_time
         return refined_samples, refine_time
+    
+    def _refine_model_sparsify(self, samples, problem=None):
+        refine_start_time = time.time()
+        if problem == None:
+            problem = self.problem_instance
+
+        refined_samples = self.refiner.refine(samples=samples, problem=problem)
+
+        refine_time = time.time() - refine_start_time
+        return refined_samples, refine_time
+    

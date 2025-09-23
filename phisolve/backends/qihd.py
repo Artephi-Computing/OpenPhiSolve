@@ -2,7 +2,7 @@ import logging
 from functools import partial
 from typing import Union
 import os
-from jax.sharding import NamedSharding
+from jax.sharding import NamedSharding, Mesh
 from jax.experimental import mesh_utils
 from jax.nn import relu
 import jax
@@ -161,9 +161,10 @@ class QIHD(Backend):
         x = jnp.array(array[0])
         y = jnp.array(array[1])
         if self.device == "gpu":
-            sharding = NamedSharding(mesh_utils.create_device_mesh((n_devices,)))
-            x = jax.device_put(x, sharding.reshape(n_devices, 1, 1))
-            y = jax.device_put(y, sharding.reshape(n_devices, 1, 1))
+            mesh = Mesh(mesh_utils.create_device_mesh((n_devices,)), ('samples'))
+            sharding = NamedSharding(mesh, jax.sharding.PartitionSpec('samples', None, None))
+            x = jax.device_put(x, sharding)
+            y = jax.device_put(y, sharding)
         result = Integrator.integrate(sb_step, (x, y), a_schedule, device=self.device)
         x_final = result[0]
         x_final = vmap(vmap(x_tilde))(x_final)
