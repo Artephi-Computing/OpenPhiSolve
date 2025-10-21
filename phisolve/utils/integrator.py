@@ -5,24 +5,6 @@ from attr import field, dataclass
 from jax import jit
 
 
-# @dataclass
-# class BackendParams:
-#     n_shots: int = field(default=100)
-#     n_steps: int = field(default=10000)
-#     ballistic: bool = field(default=False)
-#     verbose: bool = field(default=False)
-#     device: str = field(default="cpu")
-#     seed: int = field(default=None)
-#     dt: float = field(default=0.2)
-#     a0: float = field(default=1.0)
-#     symplectic_integration: bool = field(default=False)
-#     slow_a: bool = field(default=True)
-#     lc_pr: float = field(default=3)   # Penalty ratio of linear constraint
-#     constant_cons: bool = field(default=False)
-
-#     def asdict(self):
-#         return dict(self.__dict__)
-
 class Integrator:
 
     def integrate(
@@ -35,10 +17,6 @@ class Integrator:
         def new_dynamic(state, variables):
             return dynamic(state, variables), None
 
-        # if device == "cpu":
-        #     new_dynamic = jit(new_dynamic, backend="cpu")
-        # else:
-        #     new_dynamic = jit(new_dynamic, backend="gpu")
         new_dynamic = jit(new_dynamic)
         if time_dependent_variables is None:
             assert time_steps is not None

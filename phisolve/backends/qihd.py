@@ -34,7 +34,7 @@ class QIHD(Backend):
     seed: int = field(default=None)
     dt: float = field(default=0.2)
     a0: float = field(default=1.0)
-    symplectic_integration: bool = field(default=False)
+    symplectic_integration: bool = field(default=True)
     slow_a: bool = field(default=True)
     lc_pr: float = field(default=3)   # Penalty ratio of linear constraint
     constant_cons: bool = field(default=False)

@@ -302,6 +302,9 @@ def load_instance(filename):
             b = buffer["b"]
             C = read_2d_mat_from_buffer(buffer, "C")
             d = buffer["d"]
+            l = buffer["l"]
+            u = buffer["u"]
+            n_binary_vars=buffer["n_binary_vars"]
             return (
                 LCQP(
                     Q=sign * Q,
@@ -322,7 +325,9 @@ def load_instance(filename):
             b = buffer["b"]
             C = read_2d_mat_from_buffer(buffer, "C")
             d = buffer["d"]
-            n_binary_vars=buffer["n_binary_vars"],
+            l = buffer["l"]
+            u = buffer["u"]
+            n_binary_vars=buffer["n_binary_vars"]
             return (
                 MIQP(
                     Q=sign * Q,
