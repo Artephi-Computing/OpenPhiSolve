@@ -38,6 +38,7 @@ class QIHD(Backend):
     slow_a: bool = field(default=True)
     lc_pr: float = field(default=3)   # Penalty ratio of linear constraint
     constant_cons: bool = field(default=False)
+    c_0_multiplier: float = field(default=1.0)
     
     def c0_default(self, Q, w, A, b, C, d):
         n_dim = w.shape[0]
@@ -77,7 +78,7 @@ class QIHD(Backend):
         Q, w, A, b, C, d = problem.Q, problem.w, problem.A, problem.b, problem.C, problem.d
         n_dim = w.shape[0]
         n_binary_vars = problem.n_binary_vars
-        c0 = self.c0_default(Q, w, A, b, C, d)
+        c0 = self.c0_default(Q, w, A, b, C, d) * self.c_0_multiplier
 
         norm = partial(mat_norm, ord=np.inf)
         Q_norm, w_norm = norm(Q), norm(w)
