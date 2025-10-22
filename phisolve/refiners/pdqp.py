@@ -13,6 +13,7 @@ class PDQP(Refiner):
     iterations: int = field(default=1000)
     max_K: int = field(default=1)
     device: str = field(default="cpu")
+    vmappable: bool = field(default=True)
     
     def pdqp_main(self, samples, dual_vars = None):
         qp = mp.create_qp(self.problem.Q, 

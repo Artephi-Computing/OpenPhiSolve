@@ -34,10 +34,11 @@ class QIHD(Backend):
     seed: int = field(default=None)
     dt: float = field(default=0.2)
     a0: float = field(default=1.0)
-    symplectic_integration: bool = field(default=False)
+    symplectic_integration: bool = field(default=True)
     slow_a: bool = field(default=True)
     lc_pr: float = field(default=3)   # Penalty ratio of linear constraint
     constant_cons: bool = field(default=False)
+    c0_multiplier: float = field(default=0.5)
     
     def c0_default(self, Q, w, A, b, C, d):
         n_dim = w.shape[0]
@@ -46,7 +47,7 @@ class QIHD(Backend):
             mat_square(C).sum() + np.sum(d ** 2)
         num_cnt = (n_dim + A.shape[0] + C.shape[0]) * (n_dim + 1)
         C = np.sqrt(num2_sum / num_cnt)
-        return 0.5 / (C*np.sqrt(n_dim))
+        return self.c0_multiplier / (C*np.sqrt(n_dim))
 
     def round_to_nearest_device_count(self, n_shots, device_count):
         if device_count == 1:

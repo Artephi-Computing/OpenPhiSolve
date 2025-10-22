@@ -108,13 +108,11 @@ class BoxQP(Problem):
             diag_k = sp.sparse.spdiags(k, 0, self.nvar, self.nvar)
             Q_affine = diag_k @ self.Q @ diag_k
             kQ = diag_k @ self.Q
-            Qk = self.Q @ diag_k
-            w_affine = 0.5 * (kQ + Qk) @ t + k * self.w
+            w_affine = kQ @ t + k * self.w
         else:
-            Qk = self.Q * k
             kQ = (self.Q.T * k).T
             Q_affine = kQ * k
-            w_affine = 0.5 * (kQ + Qk) @ t + k * self.w
+            w_affine = kQ @ t + k * self.w
         return Q_affine, w_affine
 
     def feasibility_test(self, x):
