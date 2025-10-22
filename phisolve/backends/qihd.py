@@ -38,7 +38,7 @@ class QIHD(Backend):
     slow_a: bool = field(default=True)
     lc_pr: float = field(default=3)   # Penalty ratio of linear constraint
     constant_cons: bool = field(default=False)
-    c_0_multiplier: float = field(default=1.0)
+    c_0_multiplier: float = field(default=0.5)
     
     def c0_default(self, Q, w, A, b, C, d):
         n_dim = w.shape[0]
@@ -47,7 +47,7 @@ class QIHD(Backend):
             mat_square(C).sum() + np.sum(d ** 2)
         num_cnt = (n_dim + A.shape[0] + C.shape[0]) * (n_dim + 1)
         C = np.sqrt(num2_sum / num_cnt)
-        return 0.5 / (C*np.sqrt(n_dim))
+        return self.c_0_multiplier / (C*np.sqrt(n_dim))
 
     def round_to_nearest_device_count(self, n_shots, device_count):
         if device_count == 1:
@@ -78,7 +78,7 @@ class QIHD(Backend):
         Q, w, A, b, C, d = problem.Q, problem.w, problem.A, problem.b, problem.C, problem.d
         n_dim = w.shape[0]
         n_binary_vars = problem.n_binary_vars
-        c0 = self.c0_default(Q, w, A, b, C, d) * self.c_0_multiplier
+        c0 = self.c0_default(Q, w, A, b, C, d)
 
         norm = partial(mat_norm, ord=np.inf)
         Q_norm, w_norm = norm(Q), norm(w)
