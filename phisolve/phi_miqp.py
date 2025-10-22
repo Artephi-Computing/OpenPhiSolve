@@ -4,10 +4,7 @@ from jax import vmap, jit
 import jax.numpy as jnp
 
 import time
-from typing import Callable
-from functools import partial
 from attr import define, field
-from attr.validators import instance_of, is_callable
 
 import numpy as np
 import scipy as sp
@@ -16,17 +13,7 @@ from phisolve.backends import Backend
 from phisolve.refiners import Refiner
 from phisolve.response import Response
 import jax.numpy as jnp
-from phisolve.utils.decoding_utils import spin_to_box
 from phisolve import QIHD, PDQP
-
-
-# def validate_backend(instance, attribute, backend):
-#     if backend not in {'qihd'}:
-#         raise ValueError(f"Invalid backend name '{backend}'. Choose: 'qihd'.")
-    
-# def validate_refiner(instance, attribute, refiner):
-#     if refiner not in {'scipy_minimize', 'ipopt', 'jax_adam', 'pdqp'}:
-#         raise ValueError(f"Invalid refiner name '{refiner}'. Choose: 'scipy_minimize', 'ipopt', 'jax_adam', pdqp'.")
 
 @define
 class PhiMIQP:
@@ -56,7 +43,6 @@ class PhiMIQP:
 
     def solve(
         self,
-        # params: PhiMIQPParams,
         if_refine=True,
     ):
         det_time = dict()

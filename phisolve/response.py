@@ -1,6 +1,5 @@
 from typing import List
 
-import jax
 from attr import define, field
 import numpy as np
 from phisolve.problems import BoxQP
