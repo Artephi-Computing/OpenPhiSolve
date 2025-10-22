@@ -1,6 +1,6 @@
 import numpy as np
 import scipy as sp
-from jax import vmap
+from jax import vmap, jit
 import jax.numpy as jnp
 
 import time
@@ -74,9 +74,6 @@ class PhiMIQP:
                                               C=C, 
                                               d=d,
                                               n_binary_vars=QIHD_n_bin_var)
-        # QIHD_n_bin_var = self.problem_instance.nvar  # In general, treating BoxQP as QUBO works better in QIHD.
-        # backend = QIHD(Q=Q, w=w, A=A, b=b, C=C, d=d, n_binary_vars=QIHD_n_bin_var)
-        # backend_params = params.backend_params
 
         if self.problem_instance.nvar == self.problem_instance.n_binary_vars:
             # For QUBO problem: override if if_refine == True
@@ -90,18 +87,14 @@ class PhiMIQP:
         det_time["QIHD_Time"] = time.time() - start_time
 
         if if_refine:
-
-            refined_samples, refine_time = self._refine_batched(samples)
+            if self.refiner.vmappable:
+                refined_samples, refine_time = self._refine_vmapped(samples)
+            else:
+                refined_samples, refine_time = self._refine_batched(samples)
             det_time["Refinement"] = refine_time
-
-            return Response(
-                self.problem_instance, samples, sample_counts, refined_samples, detailed_time=det_time
-            )
+            return Response(self.problem_instance, samples, sample_counts, refined_samples, detailed_time=det_time)
         else:
-
-            return Response(
-                self.problem_instance, samples, sample_counts, samples, detailed_time=det_time
-            )
+            return Response(self.problem_instance, samples, sample_counts, samples, detailed_time=det_time)
 
     def _refine_batched(self, samples, problem=None):
         refine_start_time = time.time()
@@ -129,13 +122,20 @@ class PhiMIQP:
                 refined_samples[binind[i]] = np.concatenate((np.array(binval), np.array(batch_refined_sample[i])))
         refine_time = time.time() - refine_start_time
         return refined_samples, refine_time
-    
-    def _refine_model_sparsify(self, samples, problem=None):
+
+    def _refine_vmapped(self, samples, problem=None):
         refine_start_time = time.time()
         if problem == None:
             problem = self.problem_instance
-
-        refined_samples = self.refiner.refine(samples=samples, problem=problem)
+        n_bin = problem.n_binary_vars
+        
+        def _refine_one_sample(sample):
+            binval = sample[:n_bin]
+            lcqp_instance = problem.fix_binary_values(binval)
+            refined_sample = self.refiner.refine(samples=sample[None, n_bin:], problem=lcqp_instance)
+            return jnp.concatenate((jnp.array(binval), refined_sample[0]))
+        
+        refined_samples = jit(vmap(_refine_one_sample))(samples)
 
         refine_time = time.time() - refine_start_time
         return refined_samples, refine_time

@@ -304,7 +304,6 @@ def load_instance(filename):
             d = buffer["d"]
             l = buffer["l"]
             u = buffer["u"]
-            n_binary_vars=buffer["n_binary_vars"]
             return (
                 LCQP(
                     Q=sign * Q,

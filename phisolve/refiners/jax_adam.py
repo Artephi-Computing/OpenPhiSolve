@@ -15,6 +15,7 @@ class JaxAdam(Refiner):
     learning_rate: float = field(default=1e-1)
     iterations: int = field(default=300)
     device: str = field(default="cpu")
+    vmappable: bool = field(default=True)
 
     def run_jax(self, samples):
         optimizer = optax.adam(self.learning_rate)
