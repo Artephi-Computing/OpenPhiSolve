@@ -256,3 +256,43 @@ class LCQP(BoxQP):
             # jax.debug.print("Residuals: {tmp}", tmp=jnp.array((r_primal, r_dual, r_gap)))
             return (r_primal, r_dual, r_gap)
         return jnp.max(jnp.array((r_primal, r_dual, r_gap)))
+
+    def obj_batch(self, X):
+        """Delegate to BoxQP batched objective (supports NumPy and JAX arrays)."""
+        # BoxQP implements obj_batch and obj_batch_jax_vmap
+        from phisolve.problems.boxqp import BoxQP
+        return BoxQP.obj_batch(self, X)
+
+    def max_vios_batch(self, X):
+        """Vectorized max-violation per sample for LCQP.
+
+        Accepts X shape (n_samples, nvar). Returns per-sample max violation.
+        Supports both NumPy and JAX arrays.
+        """
+        # JAX path
+        if isinstance(X, jnp.ndarray):
+            if not hasattr(self, 'A_j'):
+                self.prepare_jax()
+            X_t = X.T
+            vio_ineq = jnp.maximum(0.0, self.A_j @ X_t - self.b_j[:, None]) if self.ncon_ineq > 0 else jnp.zeros((0, X.shape[0]))
+            vio_eq = self.C_j @ X_t - self.d_j[:, None] if self.ncon_eq > 0 else jnp.zeros((0, X.shape[0]))
+            vio_lb = jnp.maximum(0.0, self.bounds_j[0][:, None] - X_t)
+            vio_ub = jnp.maximum(0.0, X_t - self.bounds_j[1][:, None])
+            vio = jnp.concatenate([vio_ineq, jnp.abs(vio_eq), vio_lb, vio_ub], axis=0)
+            return jnp.max(vio, axis=0)
+
+        # NumPy path
+        X = np.asarray(X)
+        X_t = X.T
+        if self.ncon_ineq > 0:
+            vio_ineq = np.maximum(0.0, self.A @ X_t - self.b[:, None])
+        else:
+            vio_ineq = np.zeros((0, X.shape[0]))
+        if self.ncon_eq > 0:
+            vio_eq = self.C @ X_t - self.d[:, None]
+        else:
+            vio_eq = np.zeros((0, X.shape[0]))
+        vio_lb = np.maximum(0.0, self.bounds[0][:, None] - X_t)
+        vio_ub = np.maximum(0.0, X_t - self.bounds[1][:, None])
+        vio = np.concatenate([vio_ineq, np.abs(vio_eq), vio_lb, vio_ub], axis=0)
+        return np.max(vio, axis=0)

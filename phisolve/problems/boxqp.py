@@ -1,5 +1,6 @@
 from typing import List, Tuple, Union
 
+import jax
 import jax.numpy as jnp
 import numpy as np
 from attr import field
@@ -80,6 +81,44 @@ class BoxQP(Problem):
     def obj(self, x):
         return 0.5 * x @ self.Q @ x + self.w @ x
 
+    def prepare_jax(self):
+        # prepare JAX-friendly copies of matrices for fast jitted evaluation
+        if not hasattr(self, "Q_j"):
+            self.Q_j = jnp.asarray(to_dense_mat(self.Q))
+            self.w_j = jnp.asarray(self.w)
+            self.bounds_j = (jnp.asarray(self.bounds[0]), jnp.asarray(self.bounds[1]))
+
+    def obj_batch(self, X):
+        """Vectorized objective evaluation.
+
+        Accepts X shaped (n_samples, nvar). Returns array of objectives.
+        Uses JAX path when X is a JAX array, otherwise NumPy.
+        """
+        # JAX path
+        if isinstance(X, jnp.ndarray):
+            self.prepare_jax()
+            # Q_j @ X.T -> (nvar, n_samples)
+            QX = self.Q_j @ X.T
+            vals = 0.5 * jnp.sum(X * (QX.T), axis=1) + X @ self.w_j
+            return vals
+
+        # NumPy path
+        X = np.asarray(X)
+        Q_mat = to_dense_mat(self.Q)
+        QX = Q_mat @ X.T
+        vals = 0.5 * np.sum(X * QX.T, axis=1) + X @ self.w
+        return vals
+
+    def obj_batch_jax_vmap(self, X):
+        """JITed + vmapped objective evaluation for JAX arrays."""
+        X = jnp.asarray(X)
+        self.prepare_jax()
+        @jax.jit
+        @jax.vmap
+        def _obj(x):
+            return 0.5 * x @ self.Q_j @ x + self.w_j @ x
+        return _obj(X)
+
     def grad(self, x):
         return self.Q @ x + self.w
 
@@ -99,6 +138,27 @@ class BoxQP(Problem):
         vio_lb, vio_ub = self.vios(x)
         vio = np.concatenate((vio_lb, vio_ub))
         return np.max(vio)
+
+    def max_vios_batch(self, X):
+        """Vectorized max-violation per sample. X shape (n_samples, nvar)."""
+        # JAX path
+        if isinstance(X, jnp.ndarray):
+            self.prepare_jax()
+            X_t = X.T
+            vio_lb = jnp.maximum(0.0, self.bounds_j[0][:, None] - X_t)
+            vio_ub = jnp.maximum(0.0, X_t - self.bounds_j[1][:, None])
+            vio = jnp.concatenate((vio_lb, vio_ub), axis=0)
+            return jnp.max(vio, axis=0)
+
+        # NumPy path
+        X = np.asarray(X)
+        X_t = X.T
+        lb = self.bounds[0][:, None]
+        ub = self.bounds[1][:, None]
+        vio_lb = np.fmax(0, lb - X_t)
+        vio_ub = np.fmax(0, X_t - ub)
+        vio = np.concatenate((vio_lb, vio_ub), axis=0)
+        return np.max(vio, axis=0)
 
     def calc_Q_w_affine(self):
         k = (self.bounds[0] - self.bounds[1]) / 2
