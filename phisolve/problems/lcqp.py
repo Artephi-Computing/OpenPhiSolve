@@ -269,17 +269,46 @@ class LCQP(BoxQP):
         Accepts X shape (n_samples, nvar). Returns per-sample max violation.
         Supports both NumPy and JAX arrays.
         """
-        # JAX path
-        if isinstance(X, jnp.ndarray):
-            if not hasattr(self, 'A_j'):
-                self.prepare_jax()
-            X_t = X.T
-            vio_ineq = jnp.maximum(0.0, self.A_j @ X_t - self.b_j[:, None]) if self.ncon_ineq > 0 else jnp.zeros((0, X.shape[0]))
-            vio_eq = self.C_j @ X_t - self.d_j[:, None] if self.ncon_eq > 0 else jnp.zeros((0, X.shape[0]))
-            vio_lb = jnp.maximum(0.0, self.bounds_j[0][:, None] - X_t)
-            vio_ub = jnp.maximum(0.0, X_t - self.bounds_j[1][:, None])
-            vio = jnp.concatenate([vio_ineq, jnp.abs(vio_eq), vio_lb, vio_ub], axis=0)
-            return jnp.max(vio, axis=0)
+            # JAX path
+            if isinstance(X, jnp.ndarray):
+                # try to prepare jax attributes robustly
+                try:
+                    self.prepare_jax()
+                except Exception:
+                    # best-effort: create missing jax attributes from numpy ones
+                    if not hasattr(self, 'A_j'):
+                        try:
+                            self.A_j = jnp.asarray(self.A)
+                        except Exception:
+                            self.A_j = jnp.asarray(np.atleast_2d(self.A))
+                    if not hasattr(self, 'b_j'):
+                        self.b_j = jnp.asarray(self.b)
+                    if not hasattr(self, 'C_j'):
+                        self.C_j = jnp.asarray(self.C)
+                    if not hasattr(self, 'd_j'):
+                        self.d_j = jnp.asarray(self.d)
+                    if not hasattr(self, 'bounds_j'):
+                        self.bounds_j = (jnp.asarray(self.bounds[0]), jnp.asarray(self.bounds[1]))
+
+                # ensure attrs exist
+                if not hasattr(self, 'A_j'):
+                    self.A_j = jnp.asarray(self.A)
+                if not hasattr(self, 'b_j'):
+                    self.b_j = jnp.asarray(self.b)
+                if not hasattr(self, 'C_j'):
+                    self.C_j = jnp.asarray(self.C)
+                if not hasattr(self, 'd_j'):
+                    self.d_j = jnp.asarray(self.d)
+                if not hasattr(self, 'bounds_j'):
+                    self.bounds_j = (jnp.asarray(self.bounds[0]), jnp.asarray(self.bounds[1]))
+
+                X_t = X.T
+                vio_ineq = jnp.maximum(0.0, self.A_j @ X_t - self.b_j[:, None]) if self.ncon_ineq > 0 else jnp.zeros((0, X.shape[0]))
+                vio_eq = self.C_j @ X_t - self.d_j[:, None] if self.ncon_eq > 0 else jnp.zeros((0, X.shape[0]))
+                vio_lb = jnp.maximum(0.0, self.bounds_j[0][:, None] - X_t)
+                vio_ub = jnp.maximum(0.0, X_t - self.bounds_j[1][:, None])
+                vio = jnp.concatenate([vio_ineq, jnp.abs(vio_eq), vio_lb, vio_ub], axis=0)
+                return jnp.max(vio, axis=0)
 
         # NumPy path
         X = np.asarray(X)
