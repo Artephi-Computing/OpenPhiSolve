@@ -5,10 +5,10 @@ with open("requirements.txt", "r") as f:
 
 setup(
     name="phisolve",
-    version="0.2.0",
-    description="TODO",
-    author="TODO",
-    author_email="TODO",
+    version="0.3.0",
+    description="OpenPhiSolve: An Open-Source Python library for solving MIQP",
+    author="Artephi Team",
+    author_email="pickspeng@gmail.com",
     packages=find_packages(),
     install_requires=install_requires,
 )
