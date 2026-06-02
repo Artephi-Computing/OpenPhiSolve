@@ -256,3 +256,57 @@ class LCQP(BoxQP):
             # jax.debug.print("Residuals: {tmp}", tmp=jnp.array((r_primal, r_dual, r_gap)))
             return (r_primal, r_dual, r_gap)
         return jnp.max(jnp.array((r_primal, r_dual, r_gap)))
+
+    def obj_batch(self, X):
+        """Delegate to BoxQP batched objective (supports NumPy and JAX arrays)."""
+        # BoxQP implements obj_batch and obj_batch_jax_vmap
+        from phisolve.problems.boxqp import BoxQP
+        return BoxQP.obj_batch(self, X)
+
+    def max_vios_batch(self, X):
+        """Vectorized max-violation per sample for LCQP.
+
+        Accepts X shape (n_samples, nvar). Returns per-sample max violation.
+        Supports both NumPy and JAX arrays.
+        """
+        # JAX path
+        if isinstance(X, jnp.ndarray):
+            # prepare jax arrays if possible
+            if hasattr(self, 'prepare_jax'):
+                try:
+                    self.prepare_jax()
+                except Exception:
+                    pass
+
+            # ensure jax attributes exist
+            if not hasattr(self, 'A_j'):
+                self.A_j = jnp.asarray(self.A)
+            if not hasattr(self, 'b_j'):
+                self.b_j = jnp.asarray(self.b)
+            if not hasattr(self, 'C_j'):
+                self.C_j = jnp.asarray(self.C)
+            if not hasattr(self, 'd_j'):
+                self.d_j = jnp.asarray(self.d)
+            if not hasattr(self, 'bounds_j'):
+                self.bounds_j = (jnp.asarray(self.bounds[0]), jnp.asarray(self.bounds[1]))
+
+            X = jnp.atleast_2d(X)
+            X_t = X.T
+            n_samples = X.shape[0]
+            vio_ineq = jnp.maximum(0.0, self.A_j @ X_t - self.b_j[:, None]) if self.ncon_ineq > 0 else jnp.zeros((0, n_samples))
+            vio_eq = self.C_j @ X_t - self.d_j[:, None] if self.ncon_eq > 0 else jnp.zeros((0, n_samples))
+            vio_lb = jnp.maximum(0.0, self.bounds_j[0][:, None] - X_t)
+            vio_ub = jnp.maximum(0.0, X_t - self.bounds_j[1][:, None])
+            vio = jnp.concatenate([vio_ineq, jnp.abs(vio_eq), vio_lb, vio_ub], axis=0)
+            return jnp.max(vio, axis=0)
+
+        # NumPy path
+        X = np.atleast_2d(np.asarray(X))
+        X_t = X.T
+        n_samples = X.shape[0]
+        vio_ineq = np.maximum(0.0, self.A @ X_t - self.b[:, None]) if self.ncon_ineq > 0 else np.zeros((0, n_samples))
+        vio_eq = self.C @ X_t - self.d[:, None] if self.ncon_eq > 0 else np.zeros((0, n_samples))
+        vio_lb = np.maximum(0.0, self.bounds[0][:, None] - X_t)
+        vio_ub = np.maximum(0.0, X_t - self.bounds[1][:, None])
+        vio = np.concatenate([vio_ineq, np.abs(vio_eq), vio_lb, vio_ub], axis=0)
+        return np.max(vio, axis=0)
